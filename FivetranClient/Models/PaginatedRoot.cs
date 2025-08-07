@@ -2,5 +2,5 @@
 
 public class PaginatedRoot<T>
 {
-    public Data<T> Data { get; set; }
+  public Data<T> Data { get; set; }
 }

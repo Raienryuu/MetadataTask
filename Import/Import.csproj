@@ -8,7 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\FivetranClient\FivetranClient.csproj" />
+    <ProjectReference Include="..\FivetranClient\FivetranClient.csproj"/>
   </ItemGroup>
 
 </Project>
