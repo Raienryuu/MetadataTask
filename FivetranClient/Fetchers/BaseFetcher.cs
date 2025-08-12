@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 
 namespace FivetranClient.Fetchers;
 
@@ -6,8 +6,9 @@ public abstract class BaseFetcher(HttpRequestHandler requestHandler)
 {
   protected readonly HttpRequestHandler RequestHandler = requestHandler;
 
-  protected static readonly JsonSerializerOptions SerializerOptions = new JsonSerializerOptions
+  protected static readonly JsonSerializerOptions SerializerOptions = new()
   {
-    PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower, PropertyNameCaseInsensitive = true,
+    PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
+    PropertyNameCaseInsensitive = true,
   };
 }

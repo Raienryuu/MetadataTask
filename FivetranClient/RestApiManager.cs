@@ -10,7 +10,7 @@ public class RestApiManager(HttpRequestHandler requestHandler) : IDisposable
   private readonly PaginatedFetcher _paginatedFetcher = new(requestHandler);
   private readonly NonPaginatedFetcher _nonPaginatedFetcher = new(requestHandler);
 
-  // Indicates whether this instance owns the HttpClient and should dispose it.
+  /// Indicates whether this instance owns the HttpClient and should dispose it.
   private readonly HttpClient? _createdClient;
 
   public static readonly Uri ApiBaseUrl = new("https://api.fivetran.com/v1/");

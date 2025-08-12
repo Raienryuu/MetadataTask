@@ -7,7 +7,7 @@ public static class ConnectionSupportFactory
     {
         return connectorTypeCode switch
         {
-            FivetranConnectionSupport.ConnectorTypeCode => new FivetranConnectionSupport(),
+            FivetranConnectionSupport.CONNECTOR_TYPE_CODE => new FivetranConnectionSupport(),
             _ => throw new NotSupportedException($"Connector type '{connectorTypeCode}' is not supported.")
         };
     }

@@ -65,7 +65,7 @@ class Program
 
         return Console.ReadLine() switch
         {
-            "1" => ConnectionSupportFactory.GetConnectionSupport(FivetranConnectionSupport.ConnectorTypeCode),
+            "1" => ConnectionSupportFactory.GetConnectionSupport(FivetranConnectionSupport.CONNECTOR_TYPE_CODE),
             _ => throw new NotSupportedException("This connector is not supported yet.")
         };
     }

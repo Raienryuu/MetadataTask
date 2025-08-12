@@ -6,7 +6,7 @@ namespace Import.ConnectionSupport;
 // equivalent of database is group in Fivetran terminology
 public class FivetranConnectionSupport : IConnectionSupport
 {
-  public const string ConnectorTypeCode = "FIVETRAN";
+  public const string CONNECTOR_TYPE_CODE = "FIVETRAN";
 
   private record FivetranConnectionDetailsForSelection(string ApiKey, string ApiSecret);
 
