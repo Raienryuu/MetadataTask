@@ -1,0 +1,24 @@
+PaginatedFetcher.cs
+  - zamiana rekurencji na loopa, linie 34-63
+
+TtlDictionary.cs
+  - użycie ConcurrentDictionary zamiast Dictionary - thread-safety
+  - GetOrAdd zwraca Task<TValue> i pozwala awaitować zamiast korzystania z Task.Result do otrzymania zwracanej
+    wartości
+
+FivetranConnectionSupport.cs
+  - metoda GetConnection
+    + wyekstrahowanie ternary operatora z wywołania konstruktora RestApiManagerWrapper, linia 30
+  - metoda SelectToImport
+    + zapisanie group do zmiennej aby uniknąć ponownych enumeracji, linia 69
+    + użycie Length zamiast Count(), linia 71 i 92
+    + zapisanie connectorów do zmiennej aby uniknąć ponownych enumeracji, linia 115
+    + stringbuilder zamiast zwykłej konkatenacji  - linia 146
+    + ConcurrentBag przechowuje zinterpolowane stringi - thread-safety, linie 123-153
+
+HttpRequestHandler.cs
+  - bezpośrednie zwracanie Taska zamiast awaitowania, linie 30-37
+  - zamiana rekurencji na loopa, linie 52-84
+    (tutaj wydaje się że mogłby wystąpić deadlock przy ciąglym
+    wywoływaniu WaitAsync w nowych Taskach zwracanych w oryginalnym
+    kodzie przez return await this._GetAsync(url, cancellationToken);)

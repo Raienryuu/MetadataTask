@@ -7,12 +7,12 @@ namespace FivetranClient.Fetchers;
 
 public sealed class PaginatedFetcher(HttpRequestHandler requestHandler) : BaseFetcher(requestHandler)
 {
-  private const ushort PageSize = 100;
+  private const ushort PAGE_SIZE = 100;
 
   public IAsyncEnumerable<T> FetchItemsAsync<T>(string endpoint, CancellationToken cancellationToken)
   {
-    var firstPageTask = this.FetchPageAsync<T>(endpoint, cancellationToken);
-    return this.ProcessPagesRecursivelyAsync(endpoint, firstPageTask, cancellationToken);
+    var firstPageTask = FetchPageAsync<T>(endpoint, cancellationToken);
+    return ProcessPagesIterativelyAsync(endpoint, firstPageTask, cancellationToken);
   }
 
   private async Task<PaginatedRoot<T>?> FetchPageAsync<T>(
@@ -22,17 +22,17 @@ public sealed class PaginatedFetcher(HttpRequestHandler requestHandler) : BaseFe
   )
   {
     var response = cursor is null
-      ? await base.RequestHandler.GetAsync($"{endpoint}?limit={PageSize}", cancellationToken)
-      : await base.RequestHandler.GetAsync(
-        $"{endpoint}?limit={PageSize}&cursor={WebUtility.UrlEncode(cursor)}",
+      ? await RequestHandler.GetAsync($"{endpoint}?limit={PAGE_SIZE}", cancellationToken)
+      : await RequestHandler.GetAsync(
+        $"{endpoint}?limit={PAGE_SIZE}&cursor={WebUtility.UrlEncode(cursor)}",
         cancellationToken
       );
     var content = await response.Content.ReadAsStringAsync(cancellationToken);
     return JsonSerializer.Deserialize<PaginatedRoot<T>>(content, SerializerOptions);
   }
 
-  // This implementation provides items as soon as they are available but also in the meantime fetches the next page
-  private async IAsyncEnumerable<T> ProcessPagesRecursivelyAsync<T>(
+  /// This implementation provides items as soon as they are available but also in the meantime fetches the next page
+  private async IAsyncEnumerable<T> ProcessPagesIterativelyAsync<T>(
     string endpoint,
     Task<PaginatedRoot<T>?> currentPageTask,
     [EnumeratorCancellation] CancellationToken cancellationToken
@@ -42,27 +42,24 @@ public sealed class PaginatedFetcher(HttpRequestHandler requestHandler) : BaseFe
     var currentPage = await currentPageTask;
     var nextCursor = currentPage?.Data?.NextCursor;
 
-    IAsyncEnumerable<T>? nextResults = null;
-    if (!string.IsNullOrWhiteSpace(nextCursor))
+    do
     {
-      // fire and forget (await after yielding current items)
-      var nextTask = this.FetchPageAsync<T>(endpoint, cancellationToken, nextCursor);
-      nextResults = this.ProcessPagesRecursivelyAsync(endpoint, nextTask, cancellationToken);
-    }
+      var nextTask = !string.IsNullOrWhiteSpace(nextCursor) ? FetchPageAsync<T>(endpoint, cancellationToken, nextCursor) : null;
 
-    foreach (var item in currentPage?.Data?.Items ?? [])
-    {
-      cancellationToken.ThrowIfCancellationRequested();
-      yield return item;
-    }
+      foreach (var item in currentPage?.Data?.Items ?? [])
+      {
+        cancellationToken.ThrowIfCancellationRequested();
+        yield return item;
+      }
 
-    if (nextResults is null)
-      yield break;
-    await foreach (var nextItem in nextResults.WithCancellation(cancellationToken))
-    {
-      yield return nextItem;
-    }
+      if (nextTask is null)
+      {
+        yield break;
+      }
 
-    cancellationToken.ThrowIfCancellationRequested();
+      currentPage = await nextTask;
+      nextCursor = currentPage?.Data.NextCursor;
+
+    } while (!cancellationToken.IsCancellationRequested || nextCursor is null);
   }
 }

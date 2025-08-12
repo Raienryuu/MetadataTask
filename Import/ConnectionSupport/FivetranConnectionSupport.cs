@@ -1,3 +1,5 @@
+using System.Collections.Concurrent;
+using System.Text;
 using FivetranClient;
 using Import.Helpers.Fivetran;
 
@@ -22,6 +24,7 @@ public class FivetranConnectionSupport : IConnectionSupport
 
   public object GetConnection(object? connectionDetails, string? selectedToImport)
   {
+    ArgumentNullException.ThrowIfNull(selectedToImport);
     if (connectionDetails is not FivetranConnectionDetailsForSelection details)
     {
       throw new ArgumentException("Invalid connection details provided.");
@@ -29,7 +32,7 @@ public class FivetranConnectionSupport : IConnectionSupport
 
     return new RestApiManagerWrapper(
       new RestApiManager(details.ApiKey, details.ApiSecret, TimeSpan.FromSeconds(40)),
-      selectedToImport ?? throw new ArgumentNullException(nameof(selectedToImport))
+      selectedToImport
     );
   }
 
@@ -60,8 +63,9 @@ public class FivetranConnectionSupport : IConnectionSupport
       details.ApiSecret,
       TimeSpan.FromSeconds(40)
     );
-    var groups = restApiManager.GetGroupsAsync(CancellationToken.None).ToBlockingEnumerable();
-    if (!groups.Any())
+    var groups = restApiManager.GetGroupsAsync(CancellationToken.None).ToBlockingEnumerable().ToArray();
+
+    if (groups.Length == 0)
     {
       throw new Exception("No groups found in Fivetran account.");
     }
@@ -74,20 +78,21 @@ public class FivetranConnectionSupport : IConnectionSupport
     {
       consoleOutputBuffer += $"{elementIndex++}. {group.Name} (ID: {group.Id})\n";
     }
-
     consoleOutputBuffer += "Please select a group to import from (by number): ";
     Console.Write(consoleOutputBuffer);
+
     var input = Console.ReadLine();
     if (
       string.IsNullOrWhiteSpace(input)
       || !int.TryParse(input, out var selectedIndex)
       || selectedIndex < 1
-      || selectedIndex > groups.Count()
+      || selectedIndex > groups.Length
     )
     {
       throw new ArgumentException("Invalid group selection.");
     }
 
+    // user selection index starts with 1 not 0
     var selectedGroup = groups.ElementAt(selectedIndex - 1);
     return selectedGroup.Id;
   }
@@ -104,13 +109,15 @@ public class FivetranConnectionSupport : IConnectionSupport
 
     var connectors = restApiManager
       .GetConnectorsAsync(groupId, CancellationToken.None)
-      .ToBlockingEnumerable();
-    if (!connectors.Any())
+      .ToBlockingEnumerable()
+      .ToArray();
+
+    if (connectors.Length == 0)
     {
       throw new Exception("No connectors found in the selected group.");
     }
 
-    var allMappingsBuffer = "Lineage mappings:\n";
+    var mappings = new ConcurrentBag<string>();
     Parallel.ForEach(
       connectors,
       connector =>
@@ -123,13 +130,22 @@ public class FivetranConnectionSupport : IConnectionSupport
         {
           foreach (var table in schema.Value?.Tables ?? [])
           {
-            allMappingsBuffer +=
-              $"  {connector.Id}: {schema.Key}.{table.Key} -> {schema.Value?.NameInDestination}.{table.Value.NameInDestination}\n";
+            mappings.Add(
+              $"  {connector.Id}: {schema.Key}.{table.Key} -> {schema.Value?.NameInDestination}.{table.Value.NameInDestination}\n"
+            );
           }
         }
       }
     );
 
-    Console.WriteLine(allMappingsBuffer);
+    var stringBuilder = new StringBuilder();
+    stringBuilder.EnsureCapacity(mappings.Count * 85); // start with (size of line * AVG lenght of mapping string)
+    stringBuilder.Append("Lineage mappings:\n");
+    foreach (var mapping in mappings)
+    {
+      stringBuilder.Append(mapping);
+    }
+
+    Console.WriteLine(stringBuilder.ToString());
   }
 }

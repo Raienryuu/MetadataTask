@@ -1,10 +1,13 @@
-﻿namespace FivetranClient.Infrastructure;
+using System.Collections.Concurrent;
 
-public class TtlDictionary<TKey, TValue> where TKey : notnull
+namespace FivetranClient.Infrastructure;
+
+public class TtlDictionary<TKey, TValue>
+  where TKey : notnull
 {
-  private readonly Dictionary<TKey, (TValue, DateTime)> _dictionary = new();
+  private readonly ConcurrentDictionary<TKey, (TValue, DateTime)> _dictionary = [];
 
-  public TValue GetOrAdd(TKey key, Func<TValue> valueFactory, TimeSpan ttl)
+  public async Task<TValue> GetOrAdd(TKey key, Func<Task<TValue>> valueFactory, TimeSpan ttl)
   {
     if (_dictionary.TryGetValue(key, out var entry))
     {
@@ -13,10 +16,10 @@ public class TtlDictionary<TKey, TValue> where TKey : notnull
         return entry.Item1;
       }
 
-      _dictionary.Remove(key);
+      _dictionary.Remove(key, out _);
     }
 
-    var value = valueFactory();
+    var value = await valueFactory();
     _dictionary[key] = (value, DateTime.UtcNow.Add(ttl));
     return value;
   }
